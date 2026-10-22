@@ -1,0 +1,49 @@
+@inherits LayoutComponentBase
+@implements IDisposable
+@inject ISettingsService Settings
+
+<MudThemeProvider Theme="AppTheme.Theme" IsDarkMode="_darkMode" />
+<MudPopoverProvider />
+<MudDialogProvider />
+<MudSnackbarProvider />
+
+<MudLayout>
+    <MudAppBar Elevation="1" Dense="true">
+        <MudIconButton Icon="@Icons.Material.Filled.Menu" Color="Color.Inherit" Edge="Edge.Start"
+                       OnClick="() => _drawerOpen = !_drawerOpen" aria-label="Toggle menu" />
+        <MudText Typo="Typo.h6" Class="ml-2">Fridge Chef</MudText>
+        <MudSpacer />
+        <StatusIndicator />
+    </MudAppBar>
+
+    <MudDrawer @bind-Open="_drawerOpen" ClipMode="DrawerClipMode.Always" Elevation="1" Variant="DrawerVariant.Responsive">
+        <NavMenu />
+    </MudDrawer>
+
+    <MudMainContent Class="d-flex flex-column" Style="min-height: 100vh;">
+        <UpdatePrompt />
+        <MudContainer MaxWidth="MaxWidth.Medium" Class="py-4 flex-grow-1">
+            @Body
+        </MudContainer>
+        <AppFooter />
+    </MudMainContent>
+</MudLayout>
+
+@code {
+    private bool _drawerOpen = true;
+    private bool _darkMode = AppSettings.Default.DarkMode;
+
+    protected override async Task OnInitializedAsync()
+    {
+        Settings.AppSettingsChanged += OnAppSettingsChanged;
+        _darkMode = (await Settings.GetAppSettingsAsync()).DarkMode;
+    }
+
+    private void OnAppSettingsChanged(AppSettings settings)
+    {
+        _darkMode = settings.DarkMode;
+        InvokeAsync(StateHasChanged);
+    }
+
+    public void Dispose() => Settings.AppSettingsChanged -= OnAppSettingsChanged;
+}

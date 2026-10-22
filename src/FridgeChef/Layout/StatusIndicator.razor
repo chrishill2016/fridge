@@ -1,0 +1,36 @@
+@implements IDisposable
+@inject IConnectivityService Connectivity
+@inject ISnackbar Snackbar
+
+<MudTooltip Text="@(Connectivity.IsOnline ? "Online – AI features available" : "Offline – AI features need a connection")">
+    <MudChip T="string" Size="Size.Small" Variant="Variant.Outlined"
+             Color="@(Connectivity.IsOnline ? Color.Success : Color.Warning)"
+             Icon="@(Connectivity.IsOnline ? Icons.Material.Filled.Cloud : Icons.Material.Filled.CloudOff)"
+             data-testid="status-indicator">
+        @(Connectivity.IsOnline ? "Online" : "Offline")
+    </MudChip>
+</MudTooltip>
+
+@code {
+    protected override async Task OnInitializedAsync()
+    {
+        Connectivity.Changed += OnChanged;
+        await Connectivity.InitializeAsync();
+    }
+
+    private void OnChanged(bool isOnline)
+    {
+        if (isOnline)
+        {
+            Snackbar.Add("Back online", Severity.Success);
+        }
+        else
+        {
+            Snackbar.Add("You're offline – saved recipes and the shopping list still work", Severity.Warning);
+        }
+
+        InvokeAsync(StateHasChanged);
+    }
+
+    public void Dispose() => Connectivity.Changed -= OnChanged;
+}

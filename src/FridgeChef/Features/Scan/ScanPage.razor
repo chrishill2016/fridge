@@ -1,0 +1,41 @@
+@page "/"
+@implements IDisposable
+@inject IConnectivityService Connectivity
+
+<PageTitle>Scan – Fridge Chef</PageTitle>
+
+<MudText Typo="Typo.h5" Class="mb-4">Scan your fridge</MudText>
+
+<MudPaper Class="pa-4">
+    <MudText Class="mb-4">
+        Take or upload a photo of your fridge or cupboard and Fridge Chef will list the ingredients it can see,
+        then suggest recipes.
+    </MudText>
+
+    @if (!Connectivity.IsOnline)
+    {
+        <MudAlert Severity="Severity.Warning" Dense="true" Class="mb-4" data-testid="offline-warning">
+            Photo analysis needs a connection. Your favourites and shopping list still work offline.
+        </MudAlert>
+    }
+
+    <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.PhotoCamera"
+               Disabled="@(!Connectivity.IsOnline || !AnalysisAvailable)" data-testid="analyse-button">
+        Analyse photo
+    </MudButton>
+    @if (!AnalysisAvailable)
+    {
+        <MudText Typo="Typo.caption" Class="d-block mt-2">Photo analysis is coming in the next build.</MudText>
+    }
+</MudPaper>
+
+@code {
+    // Switched on once the Foundry-backed API exists (phase 3).
+    private const bool AnalysisAvailable = false;
+
+    protected override void OnInitialized() => Connectivity.Changed += OnChanged;
+
+    private void OnChanged(bool _) => InvokeAsync(StateHasChanged);
+
+    public void Dispose() => Connectivity.Changed -= OnChanged;
+}

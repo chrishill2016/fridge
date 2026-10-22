@@ -1,0 +1,94 @@
+@page "/shopping-list"
+@inject IShoppingListService ShoppingList
+
+<PageTitle>Shopping list – Fridge Chef</PageTitle>
+
+<MudText Typo="Typo.h5" Class="mb-4">Shopping list</MudText>
+
+<MudPaper Class="pa-4 mb-4">
+    <EditForm Model="this" OnSubmit="AddAsync">
+        <div class="d-flex gap-2 align-center">
+            <MudTextField @bind-Value="_newItem" Label="Add an item" Variant="Variant.Outlined" Margin="Margin.Dense"
+                          Immediate="true" data-testid="new-item" />
+            <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled" Color="Color.Primary"
+                       Disabled="@string.IsNullOrWhiteSpace(_newItem)" data-testid="add-item">
+                Add
+            </MudButton>
+        </div>
+    </EditForm>
+</MudPaper>
+
+@if (_items is null)
+{
+    <MudProgressCircular Indeterminate="true" />
+}
+else if (_items.Count == 0)
+{
+    <MudText data-testid="empty">Your shopping list is empty.</MudText>
+}
+else
+{
+    <MudPaper>
+        <MudList T="string" Dense="true">
+            @foreach (var item in _items)
+            {
+                <MudListItem @key="item.Id" T="string" data-testid="shopping-item">
+                    <div class="d-flex align-center">
+                        <MudCheckBox T="bool" Value="item.Bought" ValueChanged="_ => ToggleAsync(item)"
+                                     Color="Color.Primary" aria-label="@($"Bought {item.Name}")" />
+                        <div class="flex-grow-1">
+                            <MudText Style="@(item.Bought ? "text-decoration: line-through; opacity: .6" : null)">@item.Name</MudText>
+                            @if (item.FromRecipe is not null)
+                            {
+                                <MudText Typo="Typo.caption">for @item.FromRecipe</MudText>
+                            }
+                        </div>
+                        <MudIconButton Icon="@Icons.Material.Filled.Delete" Size="Size.Small"
+                                       OnClick="() => RemoveAsync(item)" aria-label="@($"Remove {item.Name}")" />
+                    </div>
+                </MudListItem>
+            }
+        </MudList>
+    </MudPaper>
+
+    @if (_items.Any(i => i.Bought))
+    {
+        <MudButton Class="mt-2" StartIcon="@Icons.Material.Filled.ClearAll" OnClick="ClearBoughtAsync" data-testid="clear-bought">
+            Clear bought items
+        </MudButton>
+    }
+}
+
+@code {
+    private IReadOnlyList<ShoppingListItem>? _items;
+    private string _newItem = "";
+
+    protected override async Task OnInitializedAsync() => await LoadAsync();
+
+    private async Task LoadAsync() => _items = await ShoppingList.GetItemsAsync();
+
+    private async Task AddAsync()
+    {
+        await ShoppingList.AddAsync(_newItem);
+        _newItem = "";
+        await LoadAsync();
+    }
+
+    private async Task ToggleAsync(ShoppingListItem item)
+    {
+        await ShoppingList.ToggleBoughtAsync(item.Id);
+        await LoadAsync();
+    }
+
+    private async Task RemoveAsync(ShoppingListItem item)
+    {
+        await ShoppingList.RemoveAsync(item.Id);
+        await LoadAsync();
+    }
+
+    private async Task ClearBoughtAsync()
+    {
+        await ShoppingList.ClearBoughtAsync();
+        await LoadAsync();
+    }
+}

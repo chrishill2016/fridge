@@ -1,0 +1,47 @@
+@page "/favourites"
+@inject ISavedRecipeService SavedRecipes
+@inject IShoppingListService ShoppingList
+@inject ISnackbar Snackbar
+
+<PageTitle>Favourites – Fridge Chef</PageTitle>
+
+<MudText Typo="Typo.h5" Class="mb-4">Favourites</MudText>
+
+@if (_saved is null)
+{
+    <MudProgressCircular Indeterminate="true" />
+}
+else if (_saved.Count == 0)
+{
+    <MudText data-testid="empty">No favourites yet. Tap the heart on a recipe to save it here.</MudText>
+}
+else
+{
+    @foreach (var saved in _saved)
+    {
+        <RecipeCard @key="saved.Id" Recipe="saved.Recipe" IsSaved="true"
+                    OnToggleSaved="() => RemoveAsync(saved)"
+                    OnAddMissing="() => AddMissingAsync(saved.Recipe)" />
+    }
+}
+
+@code {
+    private IReadOnlyList<SavedRecipe>? _saved;
+
+    protected override async Task OnInitializedAsync() => await LoadAsync();
+
+    private async Task LoadAsync() => _saved = await SavedRecipes.GetAllAsync();
+
+    private async Task RemoveAsync(SavedRecipe saved)
+    {
+        await SavedRecipes.RemoveAsync(saved.Id);
+        await LoadAsync();
+        Snackbar.Add($"Removed {saved.Recipe.Title}", Severity.Normal);
+    }
+
+    private async Task AddMissingAsync(Recipe recipe)
+    {
+        await ShoppingList.AddRangeAsync(recipe.Missing, recipe.Title);
+        Snackbar.Add($"Added {recipe.Missing.Count} item(s) to your shopping list", Severity.Success);
+    }
+}

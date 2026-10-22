@@ -1,0 +1,94 @@
+@page "/settings"
+@inject ISettingsService Settings
+@inject ISnackbar Snackbar
+
+<PageTitle>Settings – Fridge Chef</PageTitle>
+
+<MudText Typo="Typo.h5" Class="mb-4">Settings</MudText>
+
+@if (_loaded)
+{
+    <MudPaper Class="pa-4 mb-4">
+        <MudText Typo="Typo.h6" Class="mb-2">Recipe preferences</MudText>
+        <MudText Typo="Typo.body2" Class="mb-4">Stored on this device and sent with recipe requests.</MudText>
+
+        <div class="d-flex gap-2 align-center mb-2">
+            <MudTextField @bind-Value="_newDislike" Label="Add a dislike" Variant="Variant.Outlined" Margin="Margin.Dense"
+                          Immediate="true" OnKeyDown="OnDislikeKeyDown" data-testid="new-dislike" />
+            <MudButton OnClick="AddDislike" Disabled="@string.IsNullOrWhiteSpace(_newDislike)" data-testid="add-dislike">Add</MudButton>
+        </div>
+        <div class="mb-4" data-testid="dislikes">
+            @foreach (var dislike in _dislikes)
+            {
+                <MudChip T="string" @key="dislike" OnClose="() => _dislikes.Remove(dislike)">@dislike</MudChip>
+            }
+        </div>
+
+        <MudSwitch @bind-Value="_quickWeeknight" Color="Color.Primary" Label="Quick weeknight meals (30 min or less)" />
+
+        <MudNumericField @bind-Value="_servings" Label="Servings" Variant="Variant.Outlined" Margin="Margin.Dense"
+                         Min="RecipePreferences.MinServings" Max="RecipePreferences.MaxServings" Class="mt-4" Style="max-width: 160px" />
+
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" Class="mt-4" OnClick="SavePreferencesAsync" data-testid="save-preferences">
+            Save preferences
+        </MudButton>
+    </MudPaper>
+
+    <MudPaper Class="pa-4">
+        <MudText Typo="Typo.h6" Class="mb-2">Appearance</MudText>
+        <MudSwitch T="bool" Value="_darkMode" ValueChanged="SetDarkModeAsync" Color="Color.Primary" Label="Dark mode" data-testid="dark-mode" />
+    </MudPaper>
+}
+
+@code {
+    private bool _loaded;
+    private List<string> _dislikes = [];
+    private string _newDislike = "";
+    private bool _quickWeeknight;
+    private int _servings = RecipePreferences.DefaultServings;
+    private bool _darkMode;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var preferences = await Settings.GetPreferencesAsync();
+        _dislikes = [.. preferences.Dislikes];
+        _quickWeeknight = preferences.QuickWeeknight;
+        _servings = preferences.Servings;
+        _darkMode = (await Settings.GetAppSettingsAsync()).DarkMode;
+        _loaded = true;
+    }
+
+    private void AddDislike()
+    {
+        var value = _newDislike.Trim();
+        if (value.Length > 0 && !_dislikes.Contains(value, StringComparer.OrdinalIgnoreCase))
+        {
+            _dislikes.Add(value);
+        }
+
+        _newDislike = "";
+    }
+
+    private void OnDislikeKeyDown(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter")
+        {
+            AddDislike();
+        }
+    }
+
+    private async Task SavePreferencesAsync()
+    {
+        var saved = await Settings.SavePreferencesAsync(new RecipePreferences(_dislikes, _quickWeeknight, _servings));
+        _dislikes = [.. saved.Dislikes];
+        _servings = saved.Servings;
+        Snackbar.Add("Preferences saved", Severity.Success);
+    }
+
+    private async Task SetDarkModeAsync(bool value)
+    {
+        _darkMode = value;
+        var current = await Settings.GetAppSettingsAsync();
+        await Settings.SaveAppSettingsAsync(current with { DarkMode = value });
+    }
+}

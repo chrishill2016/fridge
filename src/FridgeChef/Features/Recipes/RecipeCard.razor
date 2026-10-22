@@ -1,0 +1,57 @@
+<MudCard Class="mb-4" data-testid="recipe-card">
+    <MudCardHeader>
+        <CardHeaderContent>
+            <MudText Typo="Typo.h6">@Recipe.Title</MudText>
+            <MudText Typo="Typo.caption">@Recipe.TimeMinutes min</MudText>
+        </CardHeaderContent>
+        <CardHeaderActions>
+            <MudIconButton Icon="@(IsSaved ? Icons.Material.Filled.Favorite : Icons.Material.Filled.FavoriteBorder)"
+                           Color="Color.Secondary" OnClick="OnToggleSaved"
+                           aria-label="@(IsSaved ? "Remove from favourites" : "Save to favourites")"
+                           data-testid="toggle-saved" />
+        </CardHeaderActions>
+    </MudCardHeader>
+    <MudCardContent>
+        <MudText Typo="Typo.subtitle2">Ingredients</MudText>
+        <ul class="mb-3">
+            @foreach (var ingredient in Recipe.Ingredients)
+            {
+                <li>@ingredient</li>
+            }
+        </ul>
+
+        @if (Recipe.Missing.Count > 0)
+        {
+            <MudText Typo="Typo.subtitle2">Missing</MudText>
+            <div class="mb-3" data-testid="missing">
+                @foreach (var item in Recipe.Missing)
+                {
+                    <MudChip T="string" Size="Size.Small" Color="Color.Warning" Variant="Variant.Outlined">@item</MudChip>
+                }
+            </div>
+        }
+
+        <MudText Typo="Typo.subtitle2">Method</MudText>
+        <ol>
+            @foreach (var step in Recipe.Steps)
+            {
+                <li>@step</li>
+            }
+        </ol>
+    </MudCardContent>
+    @if (Recipe.Missing.Count > 0 && OnAddMissing.HasDelegate)
+    {
+        <MudCardActions>
+            <MudButton StartIcon="@Icons.Material.Filled.AddShoppingCart" OnClick="OnAddMissing" data-testid="add-missing">
+                Add missing to shopping list
+            </MudButton>
+        </MudCardActions>
+    }
+</MudCard>
+
+@code {
+    [Parameter, EditorRequired] public Recipe Recipe { get; set; } = default!;
+    [Parameter] public bool IsSaved { get; set; }
+    [Parameter] public EventCallback OnToggleSaved { get; set; }
+    [Parameter] public EventCallback OnAddMissing { get; set; }
+}

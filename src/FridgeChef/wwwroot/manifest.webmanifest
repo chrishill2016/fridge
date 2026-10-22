@@ -1,0 +1,17 @@
+{
+  "name": "Fridge Chef",
+  "short_name": "Fridge Chef",
+  "description": "Photograph your fridge and get recipe ideas.",
+  "id": "./",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#121317",
+  "theme_color": "#1b1d22",
+  "prefer_related_applications": false,
+  "icons": [
+    { "src": "icon-192.png", "type": "image/png", "sizes": "192x192", "purpose": "any" },
+    { "src": "icon-512.png", "type": "image/png", "sizes": "512x512", "purpose": "any" },
+    { "src": "icon-maskable-512.png", "type": "image/png", "sizes": "512x512", "purpose": "maskable" }
+  ]
+}

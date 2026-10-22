@@ -1,0 +1,26 @@
+@implements IDisposable
+@inject IAppUpdateService Updates
+
+@if (Updates.UpdateAvailable)
+{
+    <MudAlert Severity="Severity.Info" Variant="Variant.Filled" Square="true" Dense="true" data-testid="update-prompt">
+        <div class="d-flex align-center gap-2">
+            <span>New version available</span>
+            <MudButton Size="Size.Small" Variant="Variant.Outlined" Color="Color.Inherit" OnClick="Updates.ApplyUpdateAsync">
+                Refresh
+            </MudButton>
+        </div>
+    </MudAlert>
+}
+
+@code {
+    protected override async Task OnInitializedAsync()
+    {
+        Updates.UpdateAvailableChanged += OnChanged;
+        await Updates.InitializeAsync();
+    }
+
+    private void OnChanged() => InvokeAsync(StateHasChanged);
+
+    public void Dispose() => Updates.UpdateAvailableChanged -= OnChanged;
+}
