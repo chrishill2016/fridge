@@ -11,7 +11,7 @@ The app is a Blazor WebAssembly PWA (MudBlazor), hosted on GitHub Pages. Prefere
 | 1 | Scaffold, PWA shell (dark mode, version, online/offline status, update prompt), CI/CD to Pages | ✅ |
 | 2 | Local data: `ILocalStore` on IndexedDB; shopping list, favourites, preferences | ✅ |
 | 3 | Foundry Bicep (resource, project, model deployment, budget) | ✅ |
-| 3 | Azure Function + Foundry vision model: `POST /api/ingredients` | ⏳ |
+| 3 | Azure Function + Foundry vision model: `POST /api/ingredients` | ✅ API · ⏳ app wiring |
 | 4 | Recipes prompt agent with `AddToShoppingList` tool, in-app model picker | ⏳ |
 | 5 | MSAL sign-in (personal Microsoft account) + object-ID allow-list in the Function | ⏳ |
 | 6 | Bicep infra (UK West, Global Standard deployments) + Function deploy via OIDC | ⏳ |
@@ -25,8 +25,12 @@ src/FridgeChef/          Blazor WASM PWA
   Layout/                Shell, status indicator, update prompt, footer
   Models/                Device-only records
   Services/              Storage (ILocalStore/IndexedDB), browser interop, feature services
-src/FridgeChef.Shared/   DTOs shared with the API
+src/FridgeChef.Api/      Azure Function (isolated worker), the only caller of Foundry
+  Features/Ingredients/  POST /api/ingredients: photo in, ingredient list out
+  Foundry/               Options, model allow-list, chat clients for the project
+src/FridgeChef.Shared/   DTOs and limits shared by app and API
 tests/FridgeChef.Tests/  xUnit v3 + bUnit
+tests/FridgeChef.Api.Tests/  xUnit v3, Foundry mocked
 infra/                   Bicep for the Azure resources
 build/                   CI helper scripts
 ```
@@ -39,6 +43,30 @@ You need the .NET 10 SDK (`global.json` pins it).
 dotnet run --project src/FridgeChef     # http://localhost:5199
 dotnet test                             # uses Microsoft.Testing.Platform (opted in via global.json)
 ```
+
+### API
+
+You need [Azure Functions Core Tools v4](https://learn.microsoft.com/azure/azure-functions/functions-run-local), [Azurite](https://learn.microsoft.com/azure/storage/common/storage-use-azurite) (or a storage connection string), and the Foundry resources from **Azure setup** below.
+
+```bash
+cp src/FridgeChef.Api/local.settings.example.json src/FridgeChef.Api/local.settings.json
+# set Foundry__ProjectEndpoint to the foundryProjectEndpoint output of infra/deploy.sh
+az login                                    # DefaultAzureCredential uses this
+cd src/FridgeChef.Api && func start         # http://localhost:7071/api/ingredients
+```
+
+Try it with a photo:
+
+```bash
+curl -F image=@fridge.jpg http://localhost:7071/api/ingredients
+curl -F image=@fridge.jpg -F model=gpt-4.1-mini http://localhost:7071/api/ingredients
+```
+
+- **Limits:** photos must be JPEG, PNG or WebP up to 4 MB. The type is checked from the file's bytes, not its name.
+- **Models:** `model` is optional and must be on the allow-list: `Foundry__IngredientsModel`, `Foundry__RecipesModel` and `Foundry__AllowedModels__0..n`.
+- **Storage:** requests go to the Foundry project's Responses API with `store: false`, so photos aren't kept by the service.
+
+### App
 
 The dev service worker does no caching. To try offline mode and the update prompt, publish the app and serve `publish/wwwroot` from any static server.
 

@@ -1,9 +1,11 @@
 <Solution>
   <Folder Name="/src/">
+    <Project Path="src/FridgeChef.Api/FridgeChef.Api.csproj" />
     <Project Path="src/FridgeChef.Shared/FridgeChef.Shared.csproj" />
     <Project Path="src/FridgeChef/FridgeChef.csproj" />
   </Folder>
   <Folder Name="/tests/">
+    <Project Path="tests/FridgeChef.Api.Tests/FridgeChef.Api.Tests.csproj" />
     <Project Path="tests/FridgeChef.Tests/FridgeChef.Tests.csproj" />
   </Folder>
 </Solution>
