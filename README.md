@@ -11,7 +11,8 @@ The app is a Blazor WebAssembly PWA (MudBlazor), hosted on GitHub Pages. Prefere
 | 1 | Scaffold, PWA shell (dark mode, version, online/offline status, update prompt), CI/CD to Pages | ✅ |
 | 2 | Local data: `ILocalStore` on IndexedDB; shopping list, favourites, preferences | ✅ |
 | 3 | Foundry Bicep (resource, project, model deployment, budget) | ✅ |
-| 3 | Azure Function + Foundry vision model: `POST /api/ingredients` | ✅ API · ⏳ app wiring |
+| 3 | Azure Function + Foundry vision model: `POST /api/ingredients` | ✅ |
+| 3 | Scan page: photo (resized in browser), analyse, editable ingredient list | ✅ |
 | 4 | Recipes prompt agent with `AddToShoppingList` tool, in-app model picker | ⏳ |
 | 5 | MSAL sign-in (personal Microsoft account) + object-ID allow-list in the Function | ⏳ |
 | 6 | Bicep infra (UK West, Global Standard deployments) + Function deploy via OIDC | ⏳ |
@@ -67,6 +68,10 @@ curl -F image=@fridge.jpg -F model=gpt-4.1-mini http://localhost:7071/api/ingred
 - **Storage:** requests go to the Foundry project's Responses API with `store: false`, so photos aren't kept by the service.
 
 ### App
+
+The app reads the API address from `wwwroot/appsettings*.json` (`Api:BaseUrl`):
+- **Running locally:** `appsettings.Development.json` points at the local Function (`http://localhost:7071/api/`).
+- **Empty address (GitHub Pages for now):** the app runs in **demo mode** and returns sample ingredients, so the flow can be tried before the API is deployed.
 
 The dev service worker does no caching. To try offline mode and the update prompt, publish the app and serve `publish/wwwroot` from any static server.
 

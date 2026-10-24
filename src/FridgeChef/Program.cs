@@ -8,6 +8,6 @@ builder.RootComponents.Add<App>("#app");
 builder.RootComponents.Add<HeadOutlet>("head::after");
 
 builder.Services.AddMudServices();
-builder.Services.AddFridgeChef();
+builder.Services.AddFridgeChef(builder.Configuration);
 
 await builder.Build().RunAsync();
