@@ -1,4 +1,5 @@
 using FridgeChef.Services;
+using FridgeChef.Services.Api;
 using FridgeChef.Services.Browser;
 using FridgeChef.Services.Storage;
 using FridgeChef.Tests.Fakes;
@@ -15,6 +16,9 @@ public abstract class AppTestContext : BunitContext
     protected ManualTimeProvider Time { get; } = new();
     protected FakeConnectivityService Connectivity { get; } = new();
     protected FakeAppUpdateService Updates { get; } = new();
+    protected FakeApi Api { get; } = new();
+    protected FakePhotoPreparer PhotoPreparer { get; } = new();
+    protected ScanSession Session { get; } = new();
 
     protected AppTestContext()
     {
@@ -28,6 +32,9 @@ public abstract class AppTestContext : BunitContext
         Services.AddSingleton<ISettingsService, SettingsService>();
         Services.AddSingleton<IShoppingListService, ShoppingListService>();
         Services.AddSingleton<ISavedRecipeService, SavedRecipeService>();
+        Services.AddSingleton<IFridgeChefApi>(Api);
+        Services.AddSingleton<IPhotoPreparer>(PhotoPreparer);
+        Services.AddSingleton(Session);
 
         // MudBlazor popovers (tooltips, snackbars) need their providers in the render tree.
         Render<MudPopoverProvider>();

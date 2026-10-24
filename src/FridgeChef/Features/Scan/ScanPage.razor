@@ -1,41 +1,186 @@
 @page "/"
 @implements IDisposable
 @inject IConnectivityService Connectivity
+@inject IFridgeChefApi Api
+@inject IPhotoPreparer PhotoPreparer
+@inject ScanSession Session
 
 <PageTitle>Scan – Fridge Chef</PageTitle>
 
 <MudText Typo="Typo.h5" Class="mb-4">Scan your fridge</MudText>
 
-<MudPaper Class="pa-4">
+@if (Api.IsDemo)
+{
+    <MudAlert Severity="Severity.Info" Dense="true" Class="mb-4" data-testid="demo-banner">
+        Demo mode: the AI service isn't connected yet, so results are sample data.
+    </MudAlert>
+}
+
+@if (!Connectivity.IsOnline)
+{
+    <MudAlert Severity="Severity.Warning" Dense="true" Class="mb-4" data-testid="offline-warning">
+        Photo analysis needs a connection. Your favourites and shopping list still work offline.
+    </MudAlert>
+}
+
+<MudPaper Class="pa-4 mb-4">
     <MudText Class="mb-4">
-        Take or upload a photo of your fridge or cupboard and Fridge Chef will list the ingredients it can see,
-        then suggest recipes.
+        Take or upload a photo of your fridge or cupboard. Fridge Chef lists the ingredients it can see, and you can fix the list before getting recipes.
     </MudText>
 
-    @if (!Connectivity.IsOnline)
+    <InputFile id="photo-input" OnChange="OnPhotoChosenAsync" accept="image/*" capture="environment" hidden />
+    <div class="d-flex flex-wrap gap-2">
+        <MudButton HtmlTag="label" for="photo-input" Variant="Variant.Outlined" Color="Color.Primary"
+                   StartIcon="@Icons.Material.Filled.PhotoCamera" Disabled="_busy" data-testid="choose-photo">
+            @(Session.Photo is null ? "Take or choose photo" : "Change photo")
+        </MudButton>
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.AutoAwesome"
+                   Disabled="@(!CanAnalyse)" OnClick="AnalyseAsync" data-testid="analyse-button">
+            Analyse photo
+        </MudButton>
+    </div>
+
+    @if (Session.Photo is not null)
     {
-        <MudAlert Severity="Severity.Warning" Dense="true" Class="mb-4" data-testid="offline-warning">
-            Photo analysis needs a connection. Your favourites and shopping list still work offline.
-        </MudAlert>
+        <img src="@PreviewUrl" alt="Your photo" class="mt-4 rounded" style="max-width: 100%; max-height: 320px; object-fit: contain;" data-testid="preview" />
     }
 
-    <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.PhotoCamera"
-               Disabled="@(!Connectivity.IsOnline || !AnalysisAvailable)" data-testid="analyse-button">
-        Analyse photo
-    </MudButton>
-    @if (!AnalysisAvailable)
+    @if (_busy)
     {
-        <MudText Typo="Typo.caption" Class="d-block mt-2">Photo analysis is coming in the next build.</MudText>
+        <div class="d-flex align-center gap-2 mt-4" data-testid="busy">
+            <MudProgressCircular Indeterminate="true" Size="Size.Small" />
+            <MudText>@_busyText</MudText>
+        </div>
+    }
+
+    @if (_error is not null)
+    {
+        <MudAlert Severity="Severity.Error" Dense="true" Class="mt-4" data-testid="error">@_error</MudAlert>
     }
 </MudPaper>
 
+@if (Session.HasResult)
+{
+    <MudPaper Class="pa-4" data-testid="results">
+        <MudText Typo="Typo.h6">Ingredients</MudText>
+        <MudText Typo="Typo.body2" Class="mb-3">Remove anything that's wrong and add what was missed. Dashed ones the model wasn't sure about.</MudText>
+
+        @if (Session.Ingredients.Count == 0)
+        {
+            <MudText Class="mb-3" data-testid="no-ingredients">No ingredients found. Try another photo or add them yourself.</MudText>
+        }
+
+        <div class="mb-3">
+            @foreach (var ingredient in Session.Ingredients)
+            {
+                <MudChip T="string" @key="ingredient.Name" Color="Color.Primary"
+                         Variant="@(ingredient.Confidence < LowConfidence ? Variant.Outlined : Variant.Filled)"
+                         Style="@(ingredient.Confidence < LowConfidence ? "border-style: dashed" : null)"
+                         OnClose="() => Session.Remove(ingredient.Name)" data-testid="ingredient">
+                    @ingredient.Name@(ingredient.Quantity is null ? "" : $" ({ingredient.Quantity})")
+                </MudChip>
+            }
+        </div>
+
+        <EditForm Model="this" OnSubmit="AddIngredient">
+            <div class="d-flex gap-2 align-center">
+                <MudTextField @bind-Value="_newIngredient" Label="Add an ingredient" Variant="Variant.Outlined" Margin="Margin.Dense"
+                              Immediate="true" data-testid="new-ingredient" />
+                <MudButton ButtonType="ButtonType.Submit" Disabled="@string.IsNullOrWhiteSpace(_newIngredient)" data-testid="add-ingredient">Add</MudButton>
+            </div>
+        </EditForm>
+
+        <MudButton Variant="Variant.Filled" Color="Color.Secondary" Class="mt-4" StartIcon="@Icons.Material.Filled.MenuBook"
+                   Disabled="true" data-testid="find-recipes">
+            Find recipes (coming next)
+        </MudButton>
+
+        <MudText Typo="Typo.caption" Class="d-block mt-3" data-testid="run-info">@RunInfo</MudText>
+    </MudPaper>
+}
+
 @code {
-    // Switched on once the Foundry-backed API exists (phase 3).
-    private const bool AnalysisAvailable = false;
+    internal const double LowConfidence = 0.6;
 
-    protected override void OnInitialized() => Connectivity.Changed += OnChanged;
+    private bool _busy;
+    private string _busyText = "";
+    private string? _error;
+    private string _newIngredient = "";
+    private string? _previewUrl;
+    private PreparedPhoto? _previewFor;
 
-    private void OnChanged(bool _) => InvokeAsync(StateHasChanged);
+    private bool CanAnalyse => Session.Photo is not null && Connectivity.IsOnline && !_busy;
 
-    public void Dispose() => Connectivity.Changed -= OnChanged;
+    private string? PreviewUrl
+    {
+        get
+        {
+            // Cache the data URL; rebuilding a ~1 MB base64 string on every render is wasteful.
+            if (!ReferenceEquals(_previewFor, Session.Photo))
+            {
+                _previewFor = Session.Photo;
+                _previewUrl = Session.Photo is null ? null : $"data:{Session.Photo.MediaType};base64,{Convert.ToBase64String(Session.Photo.Bytes)}";
+            }
+
+            return _previewUrl;
+        }
+    }
+
+    private string RunInfo => Session.Run switch
+    {
+        null => "",
+        { Model: "demo" } => "Sample data",
+        var run when run.InputTokens is not null => $"{run.Model} · {run.PromptVersion} · {run.InputTokens + run.OutputTokens:N0} tokens",
+        var run => $"{run.Model} · {run.PromptVersion}",
+    };
+
+    protected override void OnInitialized()
+    {
+        Connectivity.Changed += OnConnectivityChanged;
+        Session.Changed += OnSessionChanged;
+    }
+
+    private async Task OnPhotoChosenAsync(InputFileChangeEventArgs e)
+    {
+        _error = null;
+        await RunBusyAsync("Preparing photo…", async () => Session.SetPhoto(await PhotoPreparer.PrepareAsync(e.File)));
+    }
+
+    private Task AnalyseAsync() =>
+        RunBusyAsync("Looking for ingredients…", async () => Session.SetResult(await Api.AnalysePhotoAsync(Session.Photo!)));
+
+    private async Task RunBusyAsync(string text, Func<Task> action)
+    {
+        _busy = true;
+        _busyText = text;
+        _error = null;
+        try
+        {
+            await action();
+        }
+        catch (Exception ex) when (ex is ApiException or PhotoException)
+        {
+            _error = ex.Message;
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
+
+    private void AddIngredient()
+    {
+        Session.Add(_newIngredient);
+        _newIngredient = "";
+    }
+
+    private void OnConnectivityChanged(bool _) => InvokeAsync(StateHasChanged);
+
+    private void OnSessionChanged() => InvokeAsync(StateHasChanged);
+
+    public void Dispose()
+    {
+        Connectivity.Changed -= OnConnectivityChanged;
+        Session.Changed -= OnSessionChanged;
+    }
 }
