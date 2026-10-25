@@ -25,6 +25,12 @@ param deployments = [
   }
 ]
 
+// The Entra app registration from infra/register-app.sh. Not a secret: it's in every sign-in URL.
+param authClientId = '765741b4-a8ed-40bf-afb6-6f1db1dc5323'
+
+// The only browser origin allowed to call the API.
+param corsOrigins = ['https://chrishill2016.github.io']
+
 // Read from the environment so personal IDs and email stay out of the repo (deploy.sh sets them).
 param developerPrincipalId = readEnvironmentVariable('DEVELOPER_PRINCIPAL_ID')
 param budgetContactEmails = [readEnvironmentVariable('BUDGET_EMAIL')]
