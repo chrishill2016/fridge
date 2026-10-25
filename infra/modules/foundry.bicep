@@ -74,12 +74,14 @@ resource project 'Microsoft.CognitiveServices/accounts/projects@2025-06-01' = {
   }
 }
 
-// One at a time: parallel deployment writes on the same account fail with a conflict.
+// One at a time, and only after the project: any two writes on the same account at once
+// fail with RequestConflict ("Another operation is in progress").
 @batchSize(1)
 resource modelDeployments 'Microsoft.CognitiveServices/accounts/deployments@2025-06-01' = [
   for d in deployments: {
     parent: account
     name: d.name
+    dependsOn: [project]
     sku: {
       name: d.sku
       capacity: d.capacity
