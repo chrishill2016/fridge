@@ -15,7 +15,7 @@ The app is a Blazor WebAssembly PWA (MudBlazor), hosted on GitHub Pages. Prefere
 | 3 | Scan page: photo (resized in browser), analyse, editable ingredient list | ✅ |
 | 4 | Recipes agent (structured output), shopping-list agent with `AddToShoppingList` tool, model picker | ✅ |
 | 5 | MSAL sign-in (single-tenant, personal Microsoft account) + token validation and object-ID allow-list in the Function | ✅ |
-| 6 | Bicep infra (UK South, Global Standard deployments) + Function deploy via OIDC | ⏳ |
+| 6 | Bicep infra (UK South, Global Standard deployments) + Function deploy via OIDC | ✅ code · ⏳ Azure setup |
 | 7 | Foundry evaluations: compare prompt versions and models | ⏳ |
 
 ## Structure
@@ -156,4 +156,25 @@ Then:
 
 ### Function and pipeline (phase 6)
 
-To follow. The Function will use `DefaultAzureCredential`: `az login` locally, managed identity in Azure. No keys anywhere.
+`infra/deploy.sh` also creates the API when `authClientId` is set in `main.bicepparam` (it is):
+
+| Resource | Notes |
+|---|---|
+| Function App (Flex Consumption, .NET 10 isolated, Linux) | System-assigned managed identity. Max 40 instances. HTTPS only. FTP and basic-auth publishing off. CORS: the Pages origin only. |
+| Storage account | Host storage and the deployment package. Shared-key access is **disabled**; the Function reaches it with its identity (Blob Owner, Queue and Table Contributor). |
+| Role on Foundry | **Azure AI User** for the Function's identity, so it calls the models with no keys. |
+| Log Analytics + Application Insights | 30-day retention, capped at 1 GB/day. |
+| App settings | Foundry endpoint and models; `Auth__TenantId`, `Auth__ClientId`, `Auth__AllowedObjectIds__0` (the developer who ran the deploy). |
+
+Steps, in Cloud Shell (Bash):
+
+```bash
+infra/deploy.sh you@example.com      # adds the Function App etc.; prints apiBaseUrl and functionAppName
+infra/setup-github-deploy.sh         # GitHub → Azure trust (OIDC); prints four repo variables
+```
+
+1. **Repo variables:** add the four values from the second script as **variables** (not secrets) under Settings → Secrets and variables → Actions: `AZURE_CLIENT_ID`, `AZURE_TENANT_ID`, `AZURE_SUBSCRIPTION_ID`, `AZURE_FUNCTIONAPP_NAME`.
+2. **Deploy:** on the next push to `main`, the `deploy-api` job logs in with OIDC and deploys the Function. Until the variables exist, it's skipped.
+3. **Switch off demo mode:** set `Api:BaseUrl` in `wwwroot/appsettings.json` to the `apiBaseUrl` output, which ends in `/api/`.
+
+**Least privilege for GitHub:** the GitHub identity has **Website Contributor on the Function App only**, so it can deploy code but can't change infrastructure. Infrastructure changes go through `infra/deploy.sh`. The Function will use `DefaultAzureCredential`: `az login` locally, managed identity in Azure. No keys anywhere.

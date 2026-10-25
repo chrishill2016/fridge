@@ -20,6 +20,9 @@
     <PackageVersion Include="Microsoft.Extensions.AI" Version="10.5.1" />
     <PackageVersion Include="Azure.Identity" Version="1.21.0" />
     <PackageVersion Include="Microsoft.IdentityModel.JsonWebTokens" Version="8.23.0" />
+    <!-- WorkerService 2.23 matches the AI 2.x packages Worker.ApplicationInsights 2.51 is built on; 3.x is a different (OpenTelemetry) line. -->
+    <PackageVersion Include="Microsoft.Azure.Functions.Worker.ApplicationInsights" Version="2.51.0" />
+    <PackageVersion Include="Microsoft.ApplicationInsights.WorkerService" Version="2.23.0" />
     <PackageVersion Include="Microsoft.IdentityModel.Protocols.OpenIdConnect" Version="8.23.0" />
   </ItemGroup>
   <ItemGroup Label="Tests">
