@@ -9,7 +9,24 @@ set -euo pipefail
 repo="${1:-chrishill2016/fridge}"
 rg="${2:-rg-fridge-chef}"
 name="fridge-github-deploy"
-subject="repo:${repo}:ref:refs/heads/main"
+
+# GitHub's OIDC subject comes in two forms. Newer repos send the immutable one, with numeric owner and
+# repo IDs (repo:owner@123/name@456:ref:...); older ones send names only. Trust both, so renames
+# or GitHub-side changes don't break deploys.
+owner="${repo%%/*}"
+repo_name="${repo#*/}"
+ids="$(curl -fsS "https://api.github.com/repos/$repo" 2>/dev/null \
+  | python3 -c "import json,sys; d=json.load(sys.stdin); print(d['owner']['id'], d['id'])" 2>/dev/null || true)"
+if [ -z "$ids" ] && command -v gh >/dev/null; then
+  ids="$(gh api "repos/$repo" --jq '"\(.owner.id) \(.id)"' 2>/dev/null || true)"
+fi
+subjects=("repo:${repo}:ref:refs/heads/main")
+if [ -n "$ids" ]; then
+  read -r owner_id repo_id <<<"$ids"
+  subjects+=("repo:${owner}@${owner_id}/${repo_name}@${repo_id}:ref:refs/heads/main")
+else
+  echo "Couldn't look up $repo's IDs (private repo? run 'gh auth login' and re-run). Trusting the name-only subject." >&2
+fi
 
 function_app="$(az functionapp list -g "$rg" --query "[0].name" -o tsv)"
 if [ -z "$function_app" ]; then
@@ -29,15 +46,18 @@ if [ -z "$sp_id" ]; then
   sp_id="$(az ad sp create --id "$app_id" --query id -o tsv)"
 fi
 
-if [ -z "$(az ad app federated-credential list --id "$app_id" --query "[?subject=='$subject'].name" -o tsv)" ]; then
-  echo "Trusting GitHub Actions on $repo main"
-  az ad app federated-credential create --id "$app_id" --parameters "{
-    \"name\": \"github-main\",
-    \"issuer\": \"https://token.actions.githubusercontent.com\",
-    \"subject\": \"$subject\",
-    \"audiences\": [\"api://AzureADTokenExchange\"]
-  }" >/dev/null
-fi
+for i in "${!subjects[@]}"; do
+  subject="${subjects[$i]}"
+  if [ -z "$(az ad app federated-credential list --id "$app_id" --query "[?subject=='$subject'].name" -o tsv)" ]; then
+    echo "Trusting GitHub Actions: $subject"
+    az ad app federated-credential create --id "$app_id" --parameters "{
+      \"name\": \"github-main-$i\",
+      \"issuer\": \"https://token.actions.githubusercontent.com\",
+      \"subject\": \"$subject\",
+      \"audiences\": [\"api://AzureADTokenExchange\"]
+    }" >/dev/null
+  fi
+done
 
 if [ -z "$(az role assignment list --assignee "$sp_id" --scope "$function_id" --role "Website Contributor" --query "[0].id" -o tsv)" ]; then
   echo "Granting Website Contributor on $function_app"
