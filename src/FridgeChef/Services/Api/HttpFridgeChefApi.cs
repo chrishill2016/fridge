@@ -1,6 +1,7 @@
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using FridgeChef.Shared.Models;
+using Microsoft.AspNetCore.Components.WebAssembly.Authentication;
 
 namespace FridgeChef.Services.Api;
 
@@ -40,6 +41,11 @@ public sealed class HttpFridgeChefApi(HttpClient http) : IFridgeChefApi
             {
                 response = await http.SendAsync(request, cancellationToken);
             }
+            catch (AccessTokenNotAvailableException ex)
+            {
+                // Thrown by AuthorizationMessageHandler when there's no (valid) sign-in to get a token from.
+                throw new ApiException("Sign in to use the AI features.", ex, requiresSignIn: true);
+            }
             catch (HttpRequestException ex)
             {
                 throw new ApiException("Couldn't reach Fridge Chef's server. Check your connection and try again.", ex);
@@ -49,7 +55,9 @@ public sealed class HttpFridgeChefApi(HttpClient http) : IFridgeChefApi
             {
                 if (!response.IsSuccessStatusCode)
                 {
-                    throw new ApiException(await ReadProblemAsync(response, cancellationToken));
+                    throw new ApiException(
+                        await ReadProblemAsync(response, cancellationToken),
+                        requiresSignIn: response.StatusCode == System.Net.HttpStatusCode.Unauthorized);
                 }
 
                 return await response.Content.ReadFromJsonAsync<T>(cancellationToken)

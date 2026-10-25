@@ -14,7 +14,7 @@ The app is a Blazor WebAssembly PWA (MudBlazor), hosted on GitHub Pages. Prefere
 | 3 | Azure Function + Foundry vision model: `POST /api/ingredients` | ✅ |
 | 3 | Scan page: photo (resized in browser), analyse, editable ingredient list | ✅ |
 | 4 | Recipes agent (structured output), shopping-list agent with `AddToShoppingList` tool, model picker | ✅ |
-| 5 | MSAL sign-in (personal Microsoft account) + object-ID allow-list in the Function | ⏳ |
+| 5 | MSAL sign-in (single-tenant, personal Microsoft account) + token validation and object-ID allow-list in the Function | ✅ code · ⏳ app registration |
 | 6 | Bicep infra (UK South, Global Standard deployments) + Function deploy via OIDC | ⏳ |
 | 7 | Foundry evaluations: compare prompt versions and models | ⏳ |
 
@@ -124,6 +124,36 @@ The output includes `foundryProjectEndpoint`, which the Function uses in the nex
 
 **Stopping all cost:** `az group delete -n rg-fridge-chef`. The Foundry resource is then soft-deleted; purge it with `az cognitiveservices account purge` if you want to reuse the name straight away.
 
-### Function, auth and pipeline (phases 4–6)
+### Sign-in (phase 5)
+
+How the pieces fit:
+- **App:** signs in with MSAL against a **single-tenant** app registration in your directory, using your personal Microsoft account, which is a member of that directory.
+- **API calls:** each carries an access token for the `access_as_user` scope.
+- **Function:** middleware checks the token on every HTTP function before it runs:
+  - signed by your tenant
+  - audience is this app
+  - carries the scope
+  - `oid` is on `Auth__AllowedObjectIds`
+
+  Anything else gets 401 or 403.
+
+Create the app registration once, from Cloud Shell (Bash). Re-running it is safe:
+
+```bash
+infra/register-app.sh            # optional: [pages-url] [display-name]
+```
+
+It creates or updates the registration and prints the client ID and the Function settings:
+- **Redirect URIs** for SPA sign-in: Pages, `localhost:5199`, `localhost:7290`.
+- **API identifier:** `api://<client-id>`, with the `access_as_user` scope.
+- **v2 tokens.**
+- **No consent prompt:** the app is pre-authorised for its own scope.
+
+Then:
+- **App:** set `AzureAd:ClientId` in `src/FridgeChef/wwwroot/appsettings.json`. While it's empty, sign-in is off.
+- **Function:** set `Auth__TenantId`, `Auth__ClientId` and `Auth__AllowedObjectIds__0` (your object ID) in `local.settings.json`.
+- **Local testing before the registration exists:** `Auth__AllowAnonymousInDevelopment=true` skips the check. It only takes effect when `func start` runs in Development; in Azure it's ignored.
+
+### Function and pipeline (phase 6)
 
 To follow. The Function will use `DefaultAzureCredential`: `az login` locally, managed identity in Azure. No keys anywhere.

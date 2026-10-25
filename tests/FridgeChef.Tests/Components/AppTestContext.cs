@@ -1,5 +1,6 @@
 using FridgeChef.Services;
 using FridgeChef.Services.Api;
+using FridgeChef.Services.Auth;
 using FridgeChef.Services.Browser;
 using FridgeChef.Services.Storage;
 using FridgeChef.Tests.Fakes;
@@ -19,6 +20,10 @@ public abstract class AppTestContext : BunitContext
     protected FakeApi Api { get; } = new();
     protected FakePhotoPreparer PhotoPreparer { get; } = new();
     protected ScanSession Session { get; } = new();
+    protected Bunit.TestDoubles.BunitAuthorizationContext Auth { get; }
+
+    /// <summary>Read when first resolved, so a test can switch sign-in on before rendering.</summary>
+    protected AuthSettings AuthConfig { get; set; } = new(false);
 
     protected AppTestContext()
     {
@@ -36,6 +41,8 @@ public abstract class AppTestContext : BunitContext
         Services.AddSingleton<IPhotoPreparer>(PhotoPreparer);
         Services.AddSingleton(Session);
         Services.AddSingleton<ShoppingListAssistant>();
+        Services.AddSingleton(_ => AuthConfig);
+        Auth = AddAuthorization();
 
         // MudBlazor popovers (tooltips, snackbars) need their providers in the render tree.
         Render<MudPopoverProvider>();

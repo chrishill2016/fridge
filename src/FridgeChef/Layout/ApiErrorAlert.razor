@@ -1,0 +1,20 @@
+@using Microsoft.AspNetCore.Components.WebAssembly.Authentication
+@inject NavigationManager Navigation
+
+<MudAlert Severity="Severity.Error" Dense="true" Class="@Class" data-testid="error">
+    <div class="d-flex align-center flex-wrap gap-2">
+        <span>@Error.Message</span>
+        @if (Error.RequiresSignIn)
+        {
+            <MudButton Size="Size.Small" Variant="Variant.Outlined" Color="Color.Inherit"
+                       OnClick="@(() => Navigation.NavigateToLogin("authentication/login"))" data-testid="error-sign-in">
+                Sign in
+            </MudButton>
+        }
+    </div>
+</MudAlert>
+
+@code {
+    [Parameter, EditorRequired] public ApiException Error { get; set; } = default!;
+    [Parameter] public string? Class { get; set; }
+}

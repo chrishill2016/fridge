@@ -1,0 +1,26 @@
+@using FridgeChef.Services.Auth
+@using Microsoft.AspNetCore.Components.Authorization
+@using Microsoft.AspNetCore.Components.WebAssembly.Authentication
+@inject AuthSettings Auth
+@inject NavigationManager Navigation
+
+@if (Auth.Enabled)
+{
+    <AuthorizeView>
+        <Authorized>
+            <MudMenu Icon="@Icons.Material.Filled.AccountCircle" Color="Color.Inherit" AriaLabel="Account" data-testid="account-menu">
+                <MudMenuItem Disabled="true">@context.User.Identity?.Name</MudMenuItem>
+                <MudMenuItem OnClick="SignOut" data-testid="sign-out">Sign out</MudMenuItem>
+            </MudMenu>
+        </Authorized>
+        <NotAuthorized>
+            <MudButton Color="Color.Inherit" Size="Size.Small" OnClick="SignIn" data-testid="sign-in">Sign in</MudButton>
+        </NotAuthorized>
+    </AuthorizeView>
+}
+
+@code {
+    private void SignIn() => Navigation.NavigateToLogin("authentication/login");
+
+    private void SignOut() => Navigation.NavigateToLogout("authentication/logout");
+}

@@ -19,4 +19,8 @@ public interface IFridgeChefApi
 
 public sealed record PreparedPhoto(byte[] Bytes, string MediaType);
 
-public sealed class ApiException(string message, Exception? inner = null) : Exception(message, inner);
+public sealed class ApiException(string message, Exception? inner = null, bool requiresSignIn = false) : Exception(message, inner)
+{
+    /// <summary>The call failed because the user isn't signed in (or the sign-in expired).</summary>
+    public bool RequiresSignIn { get; } = requiresSignIn;
+}

@@ -1,0 +1,18 @@
+@page "/authentication/{action}"
+@using Microsoft.AspNetCore.Components.WebAssembly.Authentication
+
+<PageTitle>Sign in – Fridge Chef</PageTitle>
+
+@* Handles the redirects to and from Microsoft sign-in (login, login-callback, logout, …). *@
+<RemoteAuthenticatorView Action="@Action">
+    <LoggingIn><MudProgressCircular Indeterminate="true" Size="Size.Small" /> Signing in…</LoggingIn>
+    <CompletingLoggingIn><MudProgressCircular Indeterminate="true" Size="Size.Small" /> Finishing sign-in…</CompletingLoggingIn>
+    <LogInFailed>
+        <MudAlert Severity="Severity.Error">Sign-in didn't work: @context</MudAlert>
+    </LogInFailed>
+    <LogOutSucceeded><MudText>You're signed out. Your shopping list and favourites are still on this device.</MudText></LogOutSucceeded>
+</RemoteAuthenticatorView>
+
+@code {
+    [Parameter] public string? Action { get; set; }
+}
