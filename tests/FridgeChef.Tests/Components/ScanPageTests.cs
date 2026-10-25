@@ -1,4 +1,8 @@
 using FridgeChef.Features.Scan;
+using FridgeChef.Models;
+using FridgeChef.Services;
+using Microsoft.AspNetCore.Components;
+using Microsoft.Extensions.DependencyInjection;
 using FridgeChef.Services.Api;
 using Microsoft.AspNetCore.Components.Forms;
 
@@ -121,6 +125,21 @@ public class ScanPageTests : AppTestContext
 
         Assert.Equal(2, second.FindAll("[data-testid=ingredient]").Count);
         second.Find("[data-testid=preview]");
+    }
+
+    [Fact]
+    public async Task Chosen_model_is_sent_and_find_recipes_navigates()
+    {
+        await Services.GetRequiredService<ISettingsService>().SaveAppSettingsAsync(new AppSettings(Model: "phi-4"));
+        var cut = Render<ScanPage>();
+        Upload(cut);
+        cut.WaitForElement("[data-testid=analyse-button]:not([disabled])").Click();
+        cut.WaitForElement("[data-testid=ingredient]");
+
+        cut.Find("[data-testid=find-recipes]").Click();
+
+        Assert.Equal("phi-4", Api.LastPhotoModel);
+        Assert.EndsWith("/recipes", Services.GetRequiredService<NavigationManager>().Uri);
     }
 
     private static void Upload(IRenderedComponent<ScanPage> cut) =>

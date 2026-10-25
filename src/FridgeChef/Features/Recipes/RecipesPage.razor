@@ -1,0 +1,197 @@
+@page "/recipes"
+@implements IDisposable
+@inject ScanSession Session
+@inject IFridgeChefApi Api
+@inject ISettingsService Settings
+@inject ISavedRecipeService SavedRecipes
+@inject ShoppingListAssistant ShoppingAssistant
+@inject IConnectivityService Connectivity
+@inject ISnackbar Snackbar
+
+<PageTitle>Recipes – Fridge Chef</PageTitle>
+
+<MudText Typo="Typo.h5" Class="mb-4">Recipe ideas</MudText>
+
+@if (Session.Ingredients.Count == 0)
+{
+    <MudPaper Class="pa-4" data-testid="no-ingredients">
+        <MudText Class="mb-3">Scan your fridge first, and recipes for what you have will appear here.</MudText>
+        <MudButton Href="" Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.PhotoCamera">Scan</MudButton>
+    </MudPaper>
+}
+else
+{
+    <MudPaper Class="pa-4 mb-4">
+        <MudText Typo="Typo.body2" data-testid="using">
+            Using @Session.Ingredients.Count ingredient@(Session.Ingredients.Count == 1 ? "" : "s"):
+            @string.Join(", ", Session.Ingredients.Select(i => i.Name))
+        </MudText>
+        @if (_preferences is not null)
+        {
+            <MudText Typo="Typo.caption" Class="d-block mt-1" data-testid="preferences">@PreferencesSummary</MudText>
+        }
+
+        @if (Api.IsDemo)
+        {
+            <MudAlert Severity="Severity.Info" Dense="true" Class="mt-3" data-testid="demo-banner">Demo mode: these are sample recipes.</MudAlert>
+        }
+
+        @if (!Connectivity.IsOnline)
+        {
+            <MudAlert Severity="Severity.Warning" Dense="true" Class="mt-3" data-testid="offline-warning">Recipe ideas need a connection.</MudAlert>
+        }
+
+        <MudButton Class="mt-3" Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.AutoAwesome"
+                   Disabled="@(_busy || !Connectivity.IsOnline)" OnClick="SuggestAsync" data-testid="suggest">
+            @(Session.Recipes is null ? "Suggest recipes" : "Try different recipes")
+        </MudButton>
+
+        @if (_busy)
+        {
+            <div class="d-flex align-center gap-2 mt-3" data-testid="busy">
+                <MudProgressCircular Indeterminate="true" Size="Size.Small" />
+                <MudText>Thinking up recipes…</MudText>
+            </div>
+        }
+
+        @if (_error is not null)
+        {
+            <MudAlert Severity="Severity.Error" Dense="true" Class="mt-3" data-testid="error">@_error</MudAlert>
+        }
+    </MudPaper>
+
+    @if (Session.Recipes is { } result)
+    {
+        @foreach (var recipe in result.Recipes)
+        {
+            <RecipeCard @key="recipe.Title" Recipe="recipe" IsSaved="_saved.Contains(recipe.Title)"
+                        OnToggleSaved="() => ToggleSavedAsync(recipe)"
+                        OnAddMissing="() => AddMissingAsync(recipe)" />
+        }
+
+        <MudText Typo="Typo.caption" data-testid="run-info">@RunInfo(result.Run)</MudText>
+    }
+}
+
+@code {
+    private bool _busy;
+    private string? _error;
+    private RecipePreferences? _preferences;
+    private readonly HashSet<string> _saved = new(StringComparer.OrdinalIgnoreCase);
+
+    private string PreferencesSummary
+    {
+        get
+        {
+            var p = _preferences!;
+            var parts = new List<string> { $"{p.Servings} serving{(p.Servings == 1 ? "" : "s")}" };
+            if (p.QuickWeeknight)
+            {
+                parts.Add("quick weeknight");
+            }
+
+            if (p.Dislikes.Count > 0)
+            {
+                parts.Add("no " + string.Join(", ", p.Dislikes));
+            }
+
+            return string.Join(" · ", parts) + " (change in Settings)";
+        }
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        Session.Changed += OnChanged;
+        Connectivity.Changed += OnConnectivityChanged;
+        _preferences = await Settings.GetPreferencesAsync();
+        await RefreshSavedAsync();
+
+        // Arriving from Scan with fresh ingredients: start straight away.
+        if (Session.Ingredients.Count > 0 && Session.Recipes is null && Connectivity.IsOnline)
+        {
+            await SuggestAsync();
+        }
+    }
+
+    private async Task SuggestAsync()
+    {
+        _busy = true;
+        _error = null;
+        try
+        {
+            _preferences = await Settings.GetPreferencesAsync();
+            var model = (await Settings.GetAppSettingsAsync()).Model;
+            var request = new RecipesRequest([.. Session.Ingredients.Select(i => i.Name)], _preferences, model);
+            Session.SetRecipes(await Api.SuggestRecipesAsync(request));
+            await RefreshSavedAsync();
+        }
+        catch (ApiException ex)
+        {
+            _error = ex.Message;
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
+
+    private async Task ToggleSavedAsync(Recipe recipe)
+    {
+        if (_saved.Contains(recipe.Title))
+        {
+            var saved = (await SavedRecipes.GetAllAsync()).FirstOrDefault(s => s.Recipe.Title.Equals(recipe.Title, StringComparison.OrdinalIgnoreCase));
+            if (saved is not null)
+            {
+                await SavedRecipes.RemoveAsync(saved.Id);
+            }
+        }
+        else
+        {
+            await SavedRecipes.SaveAsync(recipe);
+            Snackbar.Add($"Saved {recipe.Title} to favourites", Severity.Success);
+        }
+
+        await RefreshSavedAsync();
+    }
+
+    private async Task AddMissingAsync(Recipe recipe)
+    {
+        var result = await ShoppingAssistant.AddMissingAsync(recipe);
+        Snackbar.Add(
+            result.Added == 0 ? "Everything's already on your shopping list" : $"Added {result.Added} item{(result.Added == 1 ? "" : "s")} to your shopping list",
+            result.Added == 0 ? Severity.Info : Severity.Success);
+        if (result.Warning is not null)
+        {
+            Snackbar.Add($"Added as listed. {result.Warning}", Severity.Warning);
+        }
+    }
+
+    private async Task RefreshSavedAsync()
+    {
+        _saved.Clear();
+        foreach (var recipe in Session.Recipes?.Recipes ?? [])
+        {
+            if (await SavedRecipes.IsSavedAsync(recipe.Title))
+            {
+                _saved.Add(recipe.Title);
+            }
+        }
+    }
+
+    internal static string RunInfo(AiRunInfo run) => run switch
+    {
+        { Model: "demo" } => "Sample data",
+        { InputTokens: not null } => $"{run.Model} · {run.PromptVersion} · {run.InputTokens + run.OutputTokens:N0} tokens",
+        _ => $"{run.Model} · {run.PromptVersion}",
+    };
+
+    private void OnChanged() => InvokeAsync(StateHasChanged);
+
+    private void OnConnectivityChanged(bool _) => InvokeAsync(StateHasChanged);
+
+    public void Dispose()
+    {
+        Session.Changed -= OnChanged;
+        Connectivity.Changed -= OnConnectivityChanged;
+    }
+}

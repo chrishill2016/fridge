@@ -8,9 +8,9 @@ public sealed class HttpFridgeChefApi(HttpClient http) : IFridgeChefApi
 {
     public bool IsDemo => false;
 
-    public async Task<IngredientsResponse> AnalysePhotoAsync(PreparedPhoto photo, string? model = null, CancellationToken cancellationToken = default)
+    public Task<IngredientsResponse> AnalysePhotoAsync(PreparedPhoto photo, string? model = null, CancellationToken cancellationToken = default)
     {
-        using var content = new MultipartFormDataContent();
+        var content = new MultipartFormDataContent();
         var image = new ByteArrayContent(photo.Bytes);
         image.Headers.ContentType = new MediaTypeHeaderValue(photo.MediaType);
         content.Add(image, "image", "photo" + Extension(photo.MediaType));
@@ -19,25 +19,42 @@ public sealed class HttpFridgeChefApi(HttpClient http) : IFridgeChefApi
             content.Add(new StringContent(model), "model");
         }
 
-        HttpResponseMessage response;
-        try
-        {
-            response = await http.PostAsync("ingredients", content, cancellationToken);
-        }
-        catch (HttpRequestException ex)
-        {
-            throw new ApiException("Couldn't reach Fridge Chef's server. Check your connection and try again.", ex);
-        }
+        return SendAsync<IngredientsResponse>(new HttpRequestMessage(HttpMethod.Post, "ingredients") { Content = content }, cancellationToken);
+    }
 
-        using (response)
+    public Task<RecipesResponse> SuggestRecipesAsync(RecipesRequest request, CancellationToken cancellationToken = default) =>
+        SendAsync<RecipesResponse>(new HttpRequestMessage(HttpMethod.Post, "recipes") { Content = JsonContent.Create(request) }, cancellationToken);
+
+    public Task<ShoppingListResponse> PlanShoppingAsync(ShoppingListRequest request, CancellationToken cancellationToken = default) =>
+        SendAsync<ShoppingListResponse>(new HttpRequestMessage(HttpMethod.Post, "shopping-list") { Content = JsonContent.Create(request) }, cancellationToken);
+
+    public Task<ModelsResponse> GetModelsAsync(CancellationToken cancellationToken = default) =>
+        SendAsync<ModelsResponse>(new HttpRequestMessage(HttpMethod.Get, "models"), cancellationToken);
+
+    private async Task<T> SendAsync<T>(HttpRequestMessage request, CancellationToken cancellationToken)
+    {
+        using (request)
         {
-            if (!response.IsSuccessStatusCode)
+            HttpResponseMessage response;
+            try
             {
-                throw new ApiException(await ReadProblemAsync(response, cancellationToken));
+                response = await http.SendAsync(request, cancellationToken);
+            }
+            catch (HttpRequestException ex)
+            {
+                throw new ApiException("Couldn't reach Fridge Chef's server. Check your connection and try again.", ex);
             }
 
-            return await response.Content.ReadFromJsonAsync<IngredientsResponse>(cancellationToken)
-                ?? throw new ApiException("The server sent an empty response.");
+            using (response)
+            {
+                if (!response.IsSuccessStatusCode)
+                {
+                    throw new ApiException(await ReadProblemAsync(response, cancellationToken));
+                }
+
+                return await response.Content.ReadFromJsonAsync<T>(cancellationToken)
+                    ?? throw new ApiException("The server sent an empty response.");
+            }
         }
     }
 

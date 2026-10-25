@@ -11,7 +11,7 @@ public sealed class ShoppingListService(ILocalStore store, TimeProvider time) : 
         return [.. items.OrderBy(i => i.Bought).ThenBy(i => i.AddedUtc)];
     }
 
-    public async Task<ShoppingListItem?> AddAsync(string name, string? fromRecipe = null)
+    public async Task<ShoppingListItem?> AddAsync(string name, string? fromRecipe = null, string? quantity = null)
     {
         var trimmed = name.Trim();
         if (trimmed.Length == 0)
@@ -29,8 +29,8 @@ public sealed class ShoppingListService(ILocalStore store, TimeProvider time) : 
 
         // A bought item with the same name is put back on the list rather than duplicated.
         var item = existing is not null
-            ? existing with { Bought = false, AddedUtc = time.GetUtcNow(), FromRecipe = fromRecipe ?? existing.FromRecipe }
-            : new ShoppingListItem(Guid.NewGuid().ToString("N"), trimmed, false, time.GetUtcNow(), fromRecipe);
+            ? existing with { Bought = false, AddedUtc = time.GetUtcNow(), FromRecipe = fromRecipe ?? existing.FromRecipe, Quantity = quantity ?? existing.Quantity }
+            : new ShoppingListItem(Guid.NewGuid().ToString("N"), trimmed, false, time.GetUtcNow(), fromRecipe, quantity);
 
         await store.PutAsync(StoreNames.ShoppingList, item.Id, item);
         return item;

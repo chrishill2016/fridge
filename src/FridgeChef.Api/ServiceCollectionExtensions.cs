@@ -1,6 +1,8 @@
 using Azure.AI.Projects;
 using Azure.Identity;
 using FridgeChef.Api.Features.Ingredients;
+using FridgeChef.Api.Features.Recipes;
+using FridgeChef.Api.Features.ShoppingList;
 using FridgeChef.Api.Foundry;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -25,6 +27,8 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<IModelSelector, ModelSelector>();
         services.AddSingleton<IChatClientProvider, FoundryChatClientProvider>();
         services.AddSingleton<IIngredientDetector, IngredientDetector>();
+        services.AddSingleton<IRecipeGenerator, RecipeGenerator>();
+        services.AddSingleton<IShoppingListAgent, ShoppingListAgent>();
         return services;
     }
 }

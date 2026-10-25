@@ -13,7 +13,7 @@ The app is a Blazor WebAssembly PWA (MudBlazor), hosted on GitHub Pages. Prefere
 | 3 | Foundry Bicep (resource, project, model deployment, budget) | ✅ |
 | 3 | Azure Function + Foundry vision model: `POST /api/ingredients` | ✅ |
 | 3 | Scan page: photo (resized in browser), analyse, editable ingredient list | ✅ |
-| 4 | Recipes prompt agent with `AddToShoppingList` tool, in-app model picker | ⏳ |
+| 4 | Recipes agent (structured output), shopping-list agent with `AddToShoppingList` tool, model picker | ✅ |
 | 5 | MSAL sign-in (personal Microsoft account) + object-ID allow-list in the Function | ⏳ |
 | 6 | Bicep infra (UK West, Global Standard deployments) + Function deploy via OIDC | ⏳ |
 | 7 | Foundry evaluations: compare prompt versions and models | ⏳ |
@@ -28,6 +28,9 @@ src/FridgeChef/          Blazor WASM PWA
   Services/              Storage (ILocalStore/IndexedDB), browser interop, feature services
 src/FridgeChef.Api/      Azure Function (isolated worker), the only caller of Foundry
   Features/Ingredients/  POST /api/ingredients: photo in, ingredient list out
+  Features/Recipes/      POST /api/recipes: ingredients + preferences in, 3 recipes out (agent, structured output)
+  Features/ShoppingList/ POST /api/shopping-list: agent calls AddToShoppingList per item to buy
+  Features/Models/       GET /api/models: deployments the app's model picker may offer
   Foundry/               Options, model allow-list, chat clients for the project
 src/FridgeChef.Shared/   DTOs and limits shared by app and API
 tests/FridgeChef.Tests/  xUnit v3 + bUnit
@@ -66,6 +69,11 @@ curl -F image=@fridge.jpg -F model=gpt-4.1-mini http://localhost:7071/api/ingred
 - **Limits:** photos must be JPEG, PNG or WebP up to 4 MB. The type is checked from the file's bytes, not its name.
 - **Models:** `model` is optional and must be on the allow-list: `Foundry__IngredientsModel`, `Foundry__RecipesModel` and `Foundry__AllowedModels__0..n`.
 - **Storage:** requests go to the Foundry project's Responses API with `store: false`, so photos aren't kept by the service.
+
+**How the agents work.** Both are code-defined Microsoft Agent Framework `ChatClientAgent`s over the project's Responses API, so the model can change per request.
+- **Recipes agent:** returns structured output, three recipes.
+- **Shopping-list agent:** has one function tool, `AddToShoppingList`. The framework runs the loop: the model asks for the tool, the C# method runs, the result goes back, and this repeats until the model is done. The shopping list lives on the device, so the Function collects the calls and returns them, and the app saves them.
+- **Fallback:** when offline, or if the agent fails, "Add missing" adds the items as listed.
 
 ### App
 

@@ -63,6 +63,25 @@ public class ScanSessionTests
         Assert.Empty(_sut.Ingredients);
     }
 
+    [Fact]
+    public void Changing_ingredients_clears_recipes()
+    {
+        var recipes = new RecipesResponse([], new AiRunInfo("m", "v", 1, 1));
+        _sut.SetResult(Result("eggs", "milk"));
+
+        _sut.SetRecipes(recipes);
+        _sut.Add("bacon");
+        Assert.Null(_sut.Recipes);
+
+        _sut.SetRecipes(recipes);
+        _sut.Remove("milk");
+        Assert.Null(_sut.Recipes);
+
+        _sut.SetRecipes(recipes);
+        _sut.Remove("not there");
+        Assert.Same(recipes, _sut.Recipes);
+    }
+
     private static IngredientsResponse Result(params string[] names) =>
         new([.. names.Select(n => new Ingredient(n, null, 0.9))], new AiRunInfo("m", "v", 1, 1));
 }

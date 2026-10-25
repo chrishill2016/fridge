@@ -18,10 +18,14 @@ public sealed class ScanSession
     public IReadOnlyList<Ingredient> Ingredients => _ingredients;
     public bool HasResult => Run is not null;
 
+    /// <summary>Recipes for the current ingredient list; cleared whenever the list changes.</summary>
+    public RecipesResponse? Recipes { get; private set; }
+
     public void SetPhoto(PreparedPhoto photo)
     {
         Photo = photo;
         Run = null;
+        Recipes = null;
         _ingredients.Clear();
         Changed?.Invoke();
     }
@@ -29,6 +33,7 @@ public sealed class ScanSession
     public void SetResult(IngredientsResponse result)
     {
         Run = result.Run;
+        Recipes = null;
         _ingredients.Clear();
         _ingredients.AddRange(result.Ingredients);
         Changed?.Invoke();
@@ -44,6 +49,7 @@ public sealed class ScanSession
         }
 
         _ingredients.Add(new Ingredient(trimmed));
+        Recipes = null;
         Changed?.Invoke();
         return true;
     }
@@ -52,14 +58,22 @@ public sealed class ScanSession
     {
         if (_ingredients.RemoveAll(i => i.Name.Equals(name, StringComparison.OrdinalIgnoreCase)) > 0)
         {
+            Recipes = null;
             Changed?.Invoke();
         }
+    }
+
+    public void SetRecipes(RecipesResponse recipes)
+    {
+        Recipes = recipes;
+        Changed?.Invoke();
     }
 
     public void Clear()
     {
         Photo = null;
         Run = null;
+        Recipes = null;
         _ingredients.Clear();
         Changed?.Invoke();
     }
