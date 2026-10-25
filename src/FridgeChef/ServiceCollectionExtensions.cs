@@ -18,6 +18,7 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<IShoppingListService, ShoppingListService>();
         services.AddSingleton<ISavedRecipeService, SavedRecipeService>();
         services.AddSingleton<ScanSession>();
+        services.AddSingleton<ShoppingListAssistant>();
         services.AddSingleton<IPhotoPreparer, BrowserPhotoPreparer>();
         services.AddFridgeChefApi(configuration);
         return services;

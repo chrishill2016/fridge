@@ -35,6 +35,7 @@ public abstract class AppTestContext : BunitContext
         Services.AddSingleton<IFridgeChefApi>(Api);
         Services.AddSingleton<IPhotoPreparer>(PhotoPreparer);
         Services.AddSingleton(Session);
+        Services.AddSingleton<ShoppingListAssistant>();
 
         // MudBlazor popovers (tooltips, snackbars) need their providers in the render tree.
         Render<MudPopoverProvider>();

@@ -5,4 +5,5 @@ public sealed record ShoppingListItem(
     string Name,
     bool Bought,
     DateTimeOffset AddedUtc,
-    string? FromRecipe = null);
+    string? FromRecipe = null,
+    string? Quantity = null);

@@ -13,7 +13,7 @@
     </MudCardHeader>
     <MudCardContent>
         <MudText Typo="Typo.subtitle2">Ingredients</MudText>
-        <ul class="mb-3">
+        <ul class="mb-3 pl-6">
             @foreach (var ingredient in Recipe.Ingredients)
             {
                 <li>@ingredient</li>
@@ -32,7 +32,7 @@
         }
 
         <MudText Typo="Typo.subtitle2">Method</MudText>
-        <ol>
+        <ol class="pl-6">
             @foreach (var step in Recipe.Steps)
             {
                 <li>@step</li>

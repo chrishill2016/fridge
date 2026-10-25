@@ -1,4 +1,5 @@
 using FridgeChef.Api.Foundry;
+using FridgeChef.Api.Http;
 using FridgeChef.Shared;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.Features;
@@ -24,12 +25,12 @@ public sealed class IngredientsFunction(
     {
         if (req.ContentLength > MaxRequestBytes)
         {
-            return Problem(StatusCodes.Status413PayloadTooLarge, "The photo is too large.");
+            return Problems.Create(StatusCodes.Status413PayloadTooLarge, "The photo is too large.");
         }
 
         if (!req.HasFormContentType)
         {
-            return Problem(StatusCodes.Status400BadRequest, "Send the photo as multipart/form-data.");
+            return Problems.Create(StatusCodes.Status400BadRequest, "Send the photo as multipart/form-data.");
         }
 
         var form = await req.ReadFormAsync(new FormOptions { MultipartBodyLengthLimit = MaxRequestBytes }, cancellationToken);
@@ -41,13 +42,13 @@ public sealed class IngredientsFunction(
         }
         catch (ModelNotAllowedException ex)
         {
-            return Problem(StatusCodes.Status400BadRequest, ex.Message);
+            return Problems.Create(StatusCodes.Status400BadRequest, ex.Message);
         }
 
         var (image, error) = await ImageValidator.ValidateAsync(form.Files.GetFile("image"), cancellationToken);
         if (image is null)
         {
-            return Problem(StatusCodes.Status400BadRequest, error!);
+            return Problems.Create(StatusCodes.Status400BadRequest, error!);
         }
 
         try
@@ -61,10 +62,7 @@ public sealed class IngredientsFunction(
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
             logger.LogError(ex, "Ingredient detection failed with {Model}", model);
-            return Problem(StatusCodes.Status502BadGateway, "The AI service couldn't analyse the photo. Try again shortly.");
+            return Problems.Create(StatusCodes.Status502BadGateway, "The AI service couldn't analyse the photo. Try again shortly.");
         }
     }
-
-    private static ObjectResult Problem(int status, string detail) =>
-        new(new ProblemDetails { Status = status, Detail = detail }) { StatusCode = status };
 }

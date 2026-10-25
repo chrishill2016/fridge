@@ -4,6 +4,8 @@
 @inject IFridgeChefApi Api
 @inject IPhotoPreparer PhotoPreparer
 @inject ScanSession Session
+@inject ISettingsService Settings
+@inject NavigationManager Navigation
 
 <PageTitle>Scan – Fridge Chef</PageTitle>
 
@@ -91,8 +93,8 @@
         </EditForm>
 
         <MudButton Variant="Variant.Filled" Color="Color.Secondary" Class="mt-4" StartIcon="@Icons.Material.Filled.MenuBook"
-                   Disabled="true" data-testid="find-recipes">
-            Find recipes (coming next)
+                   Disabled="@(Session.Ingredients.Count == 0)" OnClick="@(() => Navigation.NavigateTo("recipes"))" data-testid="find-recipes">
+            Find recipes
         </MudButton>
 
         <MudText Typo="Typo.caption" Class="d-block mt-3" data-testid="run-info">@RunInfo</MudText>
@@ -126,13 +128,7 @@
         }
     }
 
-    private string RunInfo => Session.Run switch
-    {
-        null => "",
-        { Model: "demo" } => "Sample data",
-        var run when run.InputTokens is not null => $"{run.Model} · {run.PromptVersion} · {run.InputTokens + run.OutputTokens:N0} tokens",
-        var run => $"{run.Model} · {run.PromptVersion}",
-    };
+    private string RunInfo => Session.Run is null ? "" : FridgeChef.Features.Recipes.RecipesPage.RunInfo(Session.Run);
 
     protected override void OnInitialized()
     {
@@ -147,7 +143,11 @@
     }
 
     private Task AnalyseAsync() =>
-        RunBusyAsync("Looking for ingredients…", async () => Session.SetResult(await Api.AnalysePhotoAsync(Session.Photo!)));
+        RunBusyAsync("Looking for ingredients…", async () =>
+        {
+            var model = (await Settings.GetAppSettingsAsync()).Model;
+            Session.SetResult(await Api.AnalysePhotoAsync(Session.Photo!, model));
+        });
 
     private async Task RunBusyAsync(string text, Func<Task> action)
     {

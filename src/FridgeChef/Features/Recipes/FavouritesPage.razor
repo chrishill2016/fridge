@@ -1,6 +1,6 @@
 @page "/favourites"
 @inject ISavedRecipeService SavedRecipes
-@inject IShoppingListService ShoppingList
+@inject ShoppingListAssistant ShoppingAssistant
 @inject ISnackbar Snackbar
 
 <PageTitle>Favourites – Fridge Chef</PageTitle>
@@ -41,7 +41,13 @@ else
 
     private async Task AddMissingAsync(Recipe recipe)
     {
-        await ShoppingList.AddRangeAsync(recipe.Missing, recipe.Title);
-        Snackbar.Add($"Added {recipe.Missing.Count} item(s) to your shopping list", Severity.Success);
+        var result = await ShoppingAssistant.AddMissingAsync(recipe);
+        Snackbar.Add(
+            result.Added == 0 ? "Everything's already on your shopping list" : $"Added {result.Added} item{(result.Added == 1 ? "" : "s")} to your shopping list",
+            result.Added == 0 ? Severity.Info : Severity.Success);
+        if (result.Warning is not null)
+        {
+            Snackbar.Add($"Added as listed. {result.Warning}", Severity.Warning);
+        }
     }
 }

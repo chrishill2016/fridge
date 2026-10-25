@@ -37,7 +37,7 @@ else
                         <MudCheckBox T="bool" Value="item.Bought" ValueChanged="_ => ToggleAsync(item)"
                                      Color="Color.Primary" aria-label="@($"Bought {item.Name}")" />
                         <div class="flex-grow-1">
-                            <MudText Style="@(item.Bought ? "text-decoration: line-through; opacity: .6" : null)">@item.Name</MudText>
+                            <MudText Style="@(item.Bought ? "text-decoration: line-through; opacity: .6" : null)">@item.Name@(item.Quantity is null ? "" : $" ({item.Quantity})")</MudText>
                             @if (item.FromRecipe is not null)
                             {
                                 <MudText Typo="Typo.caption">for @item.FromRecipe</MudText>

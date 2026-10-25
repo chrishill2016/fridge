@@ -19,6 +19,8 @@
   <ItemGroup>
     <Using Include="Xunit" />
     <Using Include="Bunit" />
+    <!-- bUnit also has a TestContext; tests mean xUnit's (cancellation token etc.). -->
+    <Using Include="Xunit.TestContext" Alias="TestContext" />
   </ItemGroup>
 
 </Project>

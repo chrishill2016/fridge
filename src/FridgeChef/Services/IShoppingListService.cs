@@ -8,7 +8,7 @@ public interface IShoppingListService
     Task<IReadOnlyList<ShoppingListItem>> GetItemsAsync();
 
     /// <summary>Adds an item unless an unbought item with the same name exists. Returns null for blank names.</summary>
-    Task<ShoppingListItem?> AddAsync(string name, string? fromRecipe = null);
+    Task<ShoppingListItem?> AddAsync(string name, string? fromRecipe = null, string? quantity = null);
 
     Task AddRangeAsync(IEnumerable<string> names, string? fromRecipe = null);
     Task ToggleBoughtAsync(string id);

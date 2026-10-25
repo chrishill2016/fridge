@@ -20,7 +20,7 @@ public class ApiClientTests
             """);
         var sut = Client(handler);
 
-        var result = await sut.AnalysePhotoAsync(Photo, "phi-4", Xunit.TestContext.Current.CancellationToken);
+        var result = await sut.AnalysePhotoAsync(Photo, "phi-4", TestContext.Current.CancellationToken);
 
         Assert.Equal(HttpMethod.Post, handler.Request!.Method);
         Assert.Equal("http://localhost:7071/api/ingredients", handler.Request.RequestUri!.ToString());
@@ -39,7 +39,7 @@ public class ApiClientTests
     {
         var handler = new StubHandler(HttpStatusCode.OK, """{"ingredients":[],"run":{"model":"m","promptVersion":"v"}}""");
 
-        await Client(handler).AnalysePhotoAsync(Photo, cancellationToken: Xunit.TestContext.Current.CancellationToken);
+        await Client(handler).AnalysePhotoAsync(Photo, cancellationToken: TestContext.Current.CancellationToken);
 
         Assert.DoesNotContain("name=model", handler.Body);
     }
@@ -49,7 +49,7 @@ public class ApiClientTests
     {
         var handler = new StubHandler(HttpStatusCode.BadRequest, """{"status":400,"detail":"The photo must be a JPEG, PNG or WebP image."}""", "application/problem+json");
 
-        var ex = await Assert.ThrowsAsync<ApiException>(() => Client(handler).AnalysePhotoAsync(Photo, cancellationToken: Xunit.TestContext.Current.CancellationToken));
+        var ex = await Assert.ThrowsAsync<ApiException>(() => Client(handler).AnalysePhotoAsync(Photo, cancellationToken: TestContext.Current.CancellationToken));
 
         Assert.Equal("The photo must be a JPEG, PNG or WebP image.", ex.Message);
     }
@@ -59,7 +59,7 @@ public class ApiClientTests
     {
         var handler = new StubHandler(HttpStatusCode.ServiceUnavailable, "<html>down</html>", "text/html");
 
-        var ex = await Assert.ThrowsAsync<ApiException>(() => Client(handler).AnalysePhotoAsync(Photo, cancellationToken: Xunit.TestContext.Current.CancellationToken));
+        var ex = await Assert.ThrowsAsync<ApiException>(() => Client(handler).AnalysePhotoAsync(Photo, cancellationToken: TestContext.Current.CancellationToken));
 
         Assert.Contains("503", ex.Message);
     }
@@ -69,9 +69,51 @@ public class ApiClientTests
     {
         var handler = new StubHandler(new HttpRequestException("connection refused"));
 
-        var ex = await Assert.ThrowsAsync<ApiException>(() => Client(handler).AnalysePhotoAsync(Photo, cancellationToken: Xunit.TestContext.Current.CancellationToken));
+        var ex = await Assert.ThrowsAsync<ApiException>(() => Client(handler).AnalysePhotoAsync(Photo, cancellationToken: TestContext.Current.CancellationToken));
 
         Assert.Contains("Couldn't reach", ex.Message);
+    }
+
+    [Fact]
+    public async Task Recipes_shopping_and_models_use_json_endpoints()
+    {
+        var recipes = new StubHandler(HttpStatusCode.OK, """{"recipes":[{"title":"Omelette","timeMinutes":10,"ingredients":["eggs"],"missing":[],"steps":["Cook"]}],"run":{"model":"m","promptVersion":"v"}}""");
+        var result = await Client(recipes).SuggestRecipesAsync(new(["eggs"], new(["olives"], true, 3), "phi-4"), TestContext.Current.CancellationToken);
+        Assert.Equal("http://localhost:7071/api/recipes", recipes.Request!.RequestUri!.ToString());
+        Assert.StartsWith("application/json", recipes.ContentType);
+        Assert.Contains("\"dislikes\":[\"olives\"]", recipes.Body);
+        Assert.Contains("\"quickWeeknight\":true", recipes.Body);
+        Assert.Equal("Omelette", Assert.Single(result.Recipes).Title);
+
+        var shopping = new StubHandler(HttpStatusCode.OK, """{"items":[{"name":"cream","quantity":"300ml"}],"run":{"model":"m","promptVersion":"v"}}""");
+        var plan = await Client(shopping).PlanShoppingAsync(new("Pasta", ["cream"], ["milk"]), TestContext.Current.CancellationToken);
+        Assert.Equal("http://localhost:7071/api/shopping-list", shopping.Request!.RequestUri!.ToString());
+        Assert.Contains("\"alreadyOnList\":[\"milk\"]", shopping.Body);
+        Assert.Equal("300ml", Assert.Single(plan.Items).Quantity);
+
+        var models = new StubHandler(HttpStatusCode.OK, """{"models":["a","b"],"ingredientsDefault":"a","recipesDefault":"b"}""");
+        var list = await Client(models).GetModelsAsync(TestContext.Current.CancellationToken);
+        Assert.Equal(HttpMethod.Get, models.Request!.Method);
+        Assert.Equal(["a", "b"], list.Models);
+    }
+
+    [Fact]
+    public async Task Demo_api_recipes_and_shopping_list()
+    {
+        var time = new ManualTimeProvider();
+        var sut = new DemoFridgeChefApi(time);
+
+        var recipesTask = sut.SuggestRecipesAsync(new(["eggs"], new([], QuickWeeknight: true)), TestContext.Current.CancellationToken);
+        time.Advance(DemoFridgeChefApi.Delay);
+        var recipes = await recipesTask;
+        Assert.Equal(3, recipes.Recipes.Count);
+        Assert.All(recipes.Recipes, r => Assert.True(r.TimeMinutes <= 30));
+
+        var planTask = sut.PlanShoppingAsync(new("Pasta", ["pasta", "garlic"], ["Garlic"]), TestContext.Current.CancellationToken);
+        time.Advance(DemoFridgeChefApi.Delay);
+        Assert.Equal(["pasta"], (await planTask).Items.Select(i => i.Name));
+
+        Assert.Equal(["demo"], (await sut.GetModelsAsync(TestContext.Current.CancellationToken)).Models);
     }
 
     [Fact]
@@ -80,7 +122,7 @@ public class ApiClientTests
         var time = new ManualTimeProvider();
         var sut = new DemoFridgeChefApi(time);
 
-        var task = sut.AnalysePhotoAsync(Photo, cancellationToken: Xunit.TestContext.Current.CancellationToken);
+        var task = sut.AnalysePhotoAsync(Photo, cancellationToken: TestContext.Current.CancellationToken);
         Assert.False(task.IsCompleted);
         time.Advance(DemoFridgeChefApi.Delay);
         var result = await task;
