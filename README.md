@@ -15,7 +15,7 @@ The app is a Blazor WebAssembly PWA (MudBlazor), hosted on GitHub Pages. Prefere
 | 3 | Scan page: photo (resized in browser), analyse, editable ingredient list | ✅ |
 | 4 | Recipes agent (structured output), shopping-list agent with `AddToShoppingList` tool, model picker | ✅ |
 | 5 | MSAL sign-in (personal Microsoft account) + object-ID allow-list in the Function | ⏳ |
-| 6 | Bicep infra (UK West, Global Standard deployments) + Function deploy via OIDC | ⏳ |
+| 6 | Bicep infra (UK South, Global Standard deployments) + Function deploy via OIDC | ⏳ |
 | 7 | Foundry evaluations: compare prompt versions and models | ⏳ |
 
 ## Structure
@@ -99,20 +99,20 @@ One-off setup: in **Settings → Pages**, set **Source** to **GitHub Actions**.
 
 ### Foundry (phase 3)
 
-`infra/main.bicep` deploys into a resource group (default `rg-fridge-chef`, UK West):
+`infra/main.bicep` deploys into a resource group (default `rg-fridge-chef`, UK South). UK West was the first choice, but it only offers text-only `gpt-oss` models, and the app needs vision.
 
 | Resource | Notes |
 |---|---|
 | Foundry resource (`AIServices` account) | Key auth disabled, so only Entra ID callers |
 | Foundry project | `fridgechef-project`, for agents, evaluations and tracing |
-| Model deployments | Listed in `infra/main.bicepparam`. Starts with `gpt-4.1-mini` on Global Standard. |
+| Model deployments | Listed in `infra/main.bicepparam`: `gpt-4.1-mini` (default) and `gpt-5.4-mini` (offered in the model picker), both Global Standard. |
 | Role assignment | **Azure AI User** for you, so local dev works via `az login` |
 | Budget | £10/month with emails at 50%, 90% and forecast 100% (`budgetAmount` to change) |
 
 Prerequisites:
 - Azure CLI, logged in with `az login`.
 - Owner on the subscription, or Contributor + User Access Administrator. The deployment creates a role assignment.
-- Check the model is offered as Global Standard in UK West: Foundry portal → Models → filter by region.
+- Check the models are offered as Global Standard in the region: `az cognitiveservices model list --location uksouth -o table`.
 
 ```bash
 infra/deploy.sh you@example.com              # optional: [resource-group] [location]

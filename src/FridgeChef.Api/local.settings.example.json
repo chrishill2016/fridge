@@ -5,7 +5,8 @@
     "FUNCTIONS_WORKER_RUNTIME": "dotnet-isolated",
     "Foundry__ProjectEndpoint": "https://<foundry-resource>.services.ai.azure.com/api/projects/fridgechef-project",
     "Foundry__IngredientsModel": "gpt-4.1-mini",
-    "Foundry__RecipesModel": "gpt-4.1-mini"
+    "Foundry__RecipesModel": "gpt-4.1-mini",
+    "Foundry__AllowedModels__0": "gpt-5.4-mini"
   },
   "Host": {
     "CORS": "http://localhost:5199,https://localhost:7290"
