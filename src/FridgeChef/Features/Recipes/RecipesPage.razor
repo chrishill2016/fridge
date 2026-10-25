@@ -56,7 +56,7 @@ else
 
         @if (_error is not null)
         {
-            <MudAlert Severity="Severity.Error" Dense="true" Class="mt-3" data-testid="error">@_error</MudAlert>
+            <ApiErrorAlert Error="_error" Class="mt-3" />
         }
     </MudPaper>
 
@@ -75,7 +75,7 @@ else
 
 @code {
     private bool _busy;
-    private string? _error;
+    private ApiException? _error;
     private RecipePreferences? _preferences;
     private readonly HashSet<string> _saved = new(StringComparer.OrdinalIgnoreCase);
 
@@ -127,7 +127,7 @@ else
         }
         catch (ApiException ex)
         {
-            _error = ex.Message;
+            _error = ex;
         }
         finally
         {

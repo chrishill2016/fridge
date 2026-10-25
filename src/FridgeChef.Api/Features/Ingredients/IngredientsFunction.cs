@@ -17,7 +17,6 @@ public sealed class IngredientsFunction(
     // Room for the image plus multipart framing and the small "model" field.
     internal const long MaxRequestBytes = ApiLimits.MaxImageBytes + 64 * 1024;
 
-    // TODO(phase 5): require a valid token for the allow-listed account before anything below runs.
     [Function("ingredients")]
     public async Task<IActionResult> Run(
         [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "ingredients")] HttpRequest req,

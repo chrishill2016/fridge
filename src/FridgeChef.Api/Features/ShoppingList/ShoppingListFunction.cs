@@ -11,7 +11,6 @@ namespace FridgeChef.Api.Features.ShoppingList;
 
 public sealed class ShoppingListFunction(IShoppingListAgent agent, IModelSelector models, ILogger<ShoppingListFunction> logger)
 {
-    // TODO(phase 5): require a valid token for the allow-listed account.
     [Function("shopping-list")]
     public async Task<IActionResult> Run(
         [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "shopping-list")] HttpRequest req,

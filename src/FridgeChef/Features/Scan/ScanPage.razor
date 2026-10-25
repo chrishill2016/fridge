@@ -55,7 +55,11 @@
         </div>
     }
 
-    @if (_error is not null)
+    @if (_apiError is not null)
+    {
+        <ApiErrorAlert Error="_apiError" Class="mt-4" />
+    }
+    else if (_error is not null)
     {
         <MudAlert Severity="Severity.Error" Dense="true" Class="mt-4" data-testid="error">@_error</MudAlert>
     }
@@ -107,6 +111,7 @@
     private bool _busy;
     private string _busyText = "";
     private string? _error;
+    private ApiException? _apiError;
     private string _newIngredient = "";
     private string? _previewUrl;
     private PreparedPhoto? _previewFor;
@@ -138,7 +143,6 @@
 
     private async Task OnPhotoChosenAsync(InputFileChangeEventArgs e)
     {
-        _error = null;
         await RunBusyAsync("Preparing photo…", async () => Session.SetPhoto(await PhotoPreparer.PrepareAsync(e.File)));
     }
 
@@ -154,11 +158,16 @@
         _busy = true;
         _busyText = text;
         _error = null;
+        _apiError = null;
         try
         {
             await action();
         }
-        catch (Exception ex) when (ex is ApiException or PhotoException)
+        catch (ApiException ex)
+        {
+            _apiError = ex;
+        }
+        catch (PhotoException ex)
         {
             _error = ex.Message;
         }

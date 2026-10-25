@@ -1,6 +1,10 @@
 using System.Net;
 using System.Text;
 using FridgeChef.Services.Api;
+using FridgeChef.Services.Auth;
+using Microsoft.AspNetCore.Components;
+using Microsoft.AspNetCore.Components.Authorization;
+using Microsoft.AspNetCore.Components.WebAssembly.Authentication;
 using FridgeChef.Tests.Fakes;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -114,6 +118,90 @@ public class ApiClientTests
         Assert.Equal(["pasta"], (await planTask).Items.Select(i => i.Name));
 
         Assert.Equal(["demo"], (await sut.GetModelsAsync(TestContext.Current.CancellationToken)).Models);
+    }
+
+    [Fact]
+    public async Task Unauthorised_response_asks_for_sign_in()
+    {
+        var handler = new StubHandler(HttpStatusCode.Unauthorized, """{"status":401,"detail":"Sign in to use Fridge Chef's AI features."}""", "application/problem+json");
+
+        var ex = await Assert.ThrowsAsync<ApiException>(() => Client(handler).GetModelsAsync(TestContext.Current.CancellationToken));
+
+        Assert.True(ex.RequiresSignIn);
+        Assert.Contains("Sign in", ex.Message);
+    }
+
+    [Fact]
+    public async Task Forbidden_response_does_not_ask_for_sign_in()
+    {
+        var handler = new StubHandler(HttpStatusCode.Forbidden, """{"status":403,"detail":"This account isn't allowed to use Fridge Chef."}""", "application/problem+json");
+
+        var ex = await Assert.ThrowsAsync<ApiException>(() => Client(handler).GetModelsAsync(TestContext.Current.CancellationToken));
+
+        Assert.False(ex.RequiresSignIn);
+        Assert.Contains("isn't allowed", ex.Message);
+    }
+
+    [Fact]
+    public async Task Missing_token_asks_for_sign_in()
+    {
+        var noToken = new AccessTokenNotAvailableException(
+            new TestNavigationManager(),
+            new AccessTokenResult(AccessTokenResultStatus.RequiresRedirect, null!, "authentication/login", null),
+            ["api://client/access_as_user"]);
+
+        var ex = await Assert.ThrowsAsync<ApiException>(() => Client(new StubHandler(noToken)).GetModelsAsync(TestContext.Current.CancellationToken));
+
+        Assert.True(ex.RequiresSignIn);
+    }
+
+    [Theory]
+    [InlineData(null, null, false, null)]
+    [InlineData("", "", false, null)]
+    [InlineData("abc", null, true, "api://abc/access_as_user")]
+    [InlineData("abc", "api://custom/scope", true, "api://custom/scope")]
+    public void Auth_settings_follow_configuration(string? clientId, string? scope, bool enabled, string? expectedScope)
+    {
+        var configuration = new ConfigurationBuilder()
+            .AddInMemoryCollection(new Dictionary<string, string?> { ["AzureAd:ClientId"] = clientId, ["Api:Scope"] = scope })
+            .Build();
+
+        var settings = AuthSettings.From(configuration);
+
+        Assert.Equal(enabled, settings.Enabled);
+        Assert.Equal(expectedScope, settings.ApiScope);
+    }
+
+    [Fact]
+    public void Without_client_id_the_app_runs_anonymously()
+    {
+        var services = new ServiceCollection().AddFridgeChef(new ConfigurationBuilder().Build());
+
+        Assert.Contains(services, d => d.ServiceType == typeof(AuthenticationStateProvider) && d.ImplementationType == typeof(AnonymousAuthenticationStateProvider));
+    }
+
+    [Fact]
+    public void With_client_id_msal_sign_in_is_registered()
+    {
+        var configuration = new ConfigurationBuilder()
+            .AddInMemoryCollection(new Dictionary<string, string?>
+            {
+                ["AzureAd:Authority"] = "https://login.microsoftonline.com/tenant",
+                ["AzureAd:ClientId"] = "abc",
+                ["Api:BaseUrl"] = "https://api.example/api/",
+            })
+            .Build();
+
+        var services = new ServiceCollection().AddFridgeChef(configuration);
+
+        Assert.DoesNotContain(services, d => d.ImplementationType == typeof(AnonymousAuthenticationStateProvider));
+        Assert.Contains(services, d => d.ServiceType == typeof(IAccessTokenProvider));
+        Assert.Equal("api://abc/access_as_user", Assert.Single(services, d => d.ServiceType == typeof(AuthSettings)).ImplementationInstance is AuthSettings a ? a.ApiScope : null);
+    }
+
+    private sealed class TestNavigationManager : NavigationManager
+    {
+        public TestNavigationManager() => Initialize("https://app.example/", "https://app.example/");
     }
 
     [Fact]

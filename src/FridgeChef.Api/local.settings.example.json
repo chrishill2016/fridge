@@ -6,7 +6,11 @@
     "Foundry__ProjectEndpoint": "https://<foundry-resource>.services.ai.azure.com/api/projects/fridgechef-project",
     "Foundry__IngredientsModel": "gpt-4.1-mini",
     "Foundry__RecipesModel": "gpt-4.1-mini",
-    "Foundry__AllowedModels__0": "gpt-5.4-mini"
+    "Foundry__AllowedModels__0": "gpt-5.4-mini",
+    "Auth__TenantId": "<tenant id>",
+    "Auth__ClientId": "<app registration client id>",
+    "Auth__AllowedObjectIds__0": "<your object id>",
+    "Auth__AllowAnonymousInDevelopment": "false"
   },
   "Host": {
     "CORS": "http://localhost:5199,https://localhost:7290"

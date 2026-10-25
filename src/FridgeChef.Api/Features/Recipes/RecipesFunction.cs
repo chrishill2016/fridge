@@ -11,7 +11,6 @@ namespace FridgeChef.Api.Features.Recipes;
 
 public sealed class RecipesFunction(IRecipeGenerator generator, IModelSelector models, ILogger<RecipesFunction> logger)
 {
-    // TODO(phase 5): require a valid token for the allow-listed account.
     [Function("recipes")]
     public async Task<IActionResult> Run(
         [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "recipes")] HttpRequest req,
