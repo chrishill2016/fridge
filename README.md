@@ -14,7 +14,7 @@ The app is a Blazor WebAssembly PWA (MudBlazor), hosted on GitHub Pages. Prefere
 | 3 | Azure Function + Foundry vision model: `POST /api/ingredients` | ✅ |
 | 3 | Scan page: photo (resized in browser), analyse, editable ingredient list | ✅ |
 | 4 | Recipes agent (structured output), shopping-list agent with `AddToShoppingList` tool, model picker | ✅ |
-| 5 | MSAL sign-in (single-tenant, personal Microsoft account) + token validation and object-ID allow-list in the Function | ✅ code · ⏳ app registration |
+| 5 | MSAL sign-in (single-tenant, personal Microsoft account) + token validation and object-ID allow-list in the Function | ✅ |
 | 6 | Bicep infra (UK South, Global Standard deployments) + Function deploy via OIDC | ⏳ |
 | 7 | Foundry evaluations: compare prompt versions and models | ⏳ |
 
