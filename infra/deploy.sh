@@ -6,7 +6,7 @@ set -euo pipefail
 
 email="${1:?Usage: infra/deploy.sh <budget-email> [resource-group] [location]}"
 rg="${2:-rg-fridge-chef}"
-location="${3:-ukwest}"
+location="${3:-uksouth}"
 here="$(cd "$(dirname "$0")" && pwd)"
 
 if ! az group show --name "$rg" >/dev/null 2>&1; then
